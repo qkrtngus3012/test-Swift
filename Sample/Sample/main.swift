@@ -11,70 +11,80 @@ import Foundation
 let jsonFileName = "students.json"
 let homeDirectoryPath = NSURL(fileURLWithPath: NSHomeDirectory())
 let jsonFilePath = homeDirectoryPath.appendingPathComponent(jsonFileName)
-let data = try Data(contentsOf: jsonFilePath! as URL)
-let parsedData = try JSONSerialization.jsonObject(with: data as Data, options: []) as? NSArray
+let jsonFileData = try Data(contentsOf: jsonFilePath! as URL)
+let parsedJsonData = try JSONSerialization.jsonObject(with: jsonFileData as Data, options: []) as? NSArray
+
 //result.txt file path
 let resultFileName = "result.txt"
 let resultFilePath = homeDirectoryPath.appendingPathComponent(resultFileName)
 let filePathString = resultFilePath?.path
 
-var avgDictionary = [String: Double]()
-var scoreDictionary = [String: String]()
+var avgDictionary = [String: Double]() //format - { <name1> : <average1> , <name2> : <average2> , ... }
+var gradeDictionary = [String: String]()//format - { <name1> : <grade1> , <name2> : <grade2> , ... }
 var totalAvg: Double = 0.0
 var avgSum: Double = 0.0
-let divisor: Double = pow(10, 2)
+let divisor: Double = pow(10, 2) //for round
 
-for item in parsedData! {
+//get the json data from dictioanry
+for item in parsedJsonData! {
     
     var average: Double = 0.0
-    var gradeSum: Double = 0
-    var dataDictionary = item as! Dictionary<String, Any>
-    var grade = dataDictionary["grade"] as! Dictionary<String,Double>
-    var name:String = dataDictionary["name"] as! String
+    var scoreSum: Double = 0
     
-    for gradeValue in grade.values {
-        gradeSum += gradeValue
+    
+    var allDataDictionary = item as! Dictionary<String, Any> //format - { <name1>: <subject1 = score1, subject2 = score2 , ...>, <name2>: <subject1 = score1, subject2 = score2, ...>, ... }
+    var score = allDataDictionary["grade"] as! Dictionary<String,Double> // format = { <subject1> : <score1>, <subject2> : <score2>, ... }
+    var name:String = allDataDictionary["name"] as! String //format - { <name1>, <name2>, ... }
+    
+    //calculate the sum of score
+    for scoreValue in score.values {
+        scoreSum += scoreValue
     }
     
-    average =  gradeSum / Double(grade.count)
-    avgDictionary.updateValue(average, forKey: name)
+    //calculate average of score, update averageDictionary
+    average =  scoreSum / Double(score.count)
+    avgDictionary.updateValue(average, forKey: name) //format - { <name1> : <average1>, <name2> : <average2>, ...}
     avgSum += average
 }
 
-totalAvg = avgSum /  Double((parsedData?.count)!)
-totalAvg = round(totalAvg*100)/100
+//calculate total average
+totalAvg = avgSum /  Double((parsedJsonData?.count)!)
 
-var roundedTotalAvg = ceil(totalAvg * divisor) / divisor
+var roundedTotalAvg = round(totalAvg * divisor) / divisor // rounded the second decimal number
 let buffer = "성적결과표\n\n전체 평균 : \(roundedTotalAvg)\n\n개인별 학점\n"
-var contents:String = ""
+var contents:String = "" //contents of writing data
 
 contents.append(buffer)
 
-let scoreArray = ["A","B","C","D","F"]
+let gradeArray = ["A","B","C","D","F"]
 var completionStudent = [String]()
 
-for (key, value) in avgDictionary {
-    if ( value >= 90.0 && 100.0 > value){
-        completionStudent.append(key)
-        scoreDictionary.updateValue( scoreArray[0], forKey: key)
-    } else if( value >= 80 && 90 > value){
-        completionStudent.append(key)
-        scoreDictionary.updateValue( scoreArray[1], forKey: key)
-    } else if( value >= 70 && 80 > value){
-        completionStudent.append(key)
-        scoreDictionary.updateValue( scoreArray[2], forKey: key)
-    } else if( value >= 60 && 70 > value){
-        scoreDictionary.updateValue( scoreArray[3], forKey: key)
+//calculate grade
+for (name, average) in avgDictionary {
+    if ( average >= 90.0 && 100.0 > average){
+        completionStudent.append(name)
+        gradeDictionary.updateValue( gradeArray[0], forKey: name)
+    } else if( average >= 80 && 90 > average){
+        completionStudent.append(name)
+        gradeDictionary.updateValue( gradeArray[1], forKey: name)
+    } else if( average >= 70 && 80 > average){
+        completionStudent.append(name)
+        gradeDictionary.updateValue( gradeArray[2], forKey: name)
+    } else if( average >= 60 && 70 > average){
+        gradeDictionary.updateValue( gradeArray[3], forKey: name)
     } else {
-        scoreDictionary.updateValue( scoreArray[4], forKey: key)
+        gradeDictionary.updateValue( gradeArray[4], forKey: name)
     }
 }
 
-for (key,value) in scoreDictionary.sorted(by: <) {
-    contents.append("\(key)\t\t: \(value)\n")
+//sort the name and grade
+for (name,grade) in gradeDictionary.sorted(by: <) {
+    contents.append("\(name)\t\t: \(grade)\n")
 }
+
 contents.append("\n수료생\n")
 
+//sort the student
 for sortedStudent in completionStudent.sorted(){
     completionStudent.append(sortedStudent)
     completionStudent.remove(at: 0)
@@ -90,6 +100,7 @@ for student in completionStudent {
     }
 }
 
+//write the contents to result.txt
 do {
     try contents.write(toFile: filePathString!, atomically: false, encoding: String.Encoding.utf8)
    
